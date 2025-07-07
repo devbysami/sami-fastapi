@@ -39,6 +39,3 @@ https://github.com/devbysami/sami-fastapi.git
 cd sami-fastapi
 pip install -r requirements.txt
 uvicorn sami-fastapi.main:app --reload
-
-
-
