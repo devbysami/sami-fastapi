@@ -6,8 +6,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models.tasks import User
-from database import get_db
+from database import get_db_psql
 from uuid import uuid4
+from curd import get_user_by_id_mongo
 
 SECRET_KEY = str(uuid4())
 ALGORITHM = "HS256"
@@ -28,7 +29,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db_psql)):
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,3 +56,29 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     
     return user
+
+async def get_current_user_mongo(token: str = Depends(oauth2_scheme), db=None):
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        
+        if user_id is None:
+            raise credentials_exception
+        
+    except JWTError:
+        raise credentials_exception
+
+    result = await get_user_by_id_mongo(db=db, id=user_id)
+    
+    if not result:
+        raise credentials_exception
+    
+    return result
