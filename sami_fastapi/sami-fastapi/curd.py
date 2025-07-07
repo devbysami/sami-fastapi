@@ -3,6 +3,8 @@ from sqlalchemy.future import select
 from passlib.context import CryptContext
 from models import tasks as modelTasks
 from schemas import tasks as schemaTasks
+from pymongo import MongoClient
+from uuid import uuid4
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -24,3 +26,29 @@ async def create_task(db: AsyncSession, task: schemaTasks.TaskCreate, user_id: i
     await db.commit()
     await db.refresh(db_task)
     return db_task
+
+async def get_user_by_email_mongo(db, email):
+    
+    result = db["users"].find_one({
+        "email" : email
+    })
+    
+    return result
+
+async def get_user_by_id_mongo(db, id):
+    
+    result = db["users"].find_one({
+        "id" : id
+    })
+    
+    return result
+
+async def create_user_mongo(db, user: schemaTasks.UserCreate):
+    
+    create_data = {
+        **user.dict(),
+        "id" : str(uuid4())
+    }
+    
+    db["users"].insert_one(create_data)
+    return await get_user_by_email_mongo(db, user.email)
